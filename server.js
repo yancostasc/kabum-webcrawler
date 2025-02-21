@@ -28,24 +28,13 @@ app.get("/search", async (req, res) => {
         let results = Array.from(items)
           .filter((item) => !item.innerText.includes("PATROCINADO"))
           .map((item) => {
-            const name =
-              item.querySelector(".nameCard")?.innerText.trim() ||
-              "Nome não encontrado";
-            const price =
-              item.querySelector(".priceCard")?.innerText.trim() ||
-              "Preço não ";
-            const image =
-              item.querySelector("img")?.getAttribute("src") ||
-              "Imagem não encontrada";
-            const link =
-              item.querySelector("a")?.getAttribute("href") || "URL não asd";
+            const name = item.querySelector(".nameCard")?.innerText.trim() || "Nome não encontrado";
+            const price = item.querySelector(".priceCard")?.innerText.trim() || "Preço não ";
+            const image = item.querySelector("img")?.getAttribute("src") || "Imagem não encontrada";
+            const link = item.querySelector("a")?.getAttribute("href") || "URL não asd";
 
-            const reviewElement = item.querySelector(
-              ".ratingStarsContainer + span"
-            );
-            const reviewCount = reviewElement
-              ? reviewElement.innerText.replace(/[()]/g, "").trim()
-              : "0";
+            const reviewElement = item.querySelector(".ratingStarsContainer + span");
+            const reviewCount = reviewElement ? reviewElement.innerText.replace(/[()]/g, "").trim() : "0";
 
             const ratingElement = item.querySelector(".ratingStarsContainer");
             const ratingText = ratingElement?.getAttribute("aria-label") || "";
@@ -59,9 +48,7 @@ app.get("/search", async (req, res) => {
               reviewCount,
               rating,
               image,
-              url: link.startsWith("/")
-                ? `https://www.kabum.com.br${link}`
-                : link,
+              url: link.startsWith("/") ? `https://www.kabum.com.br${link}` : link,
             };
           });
 
@@ -75,9 +62,7 @@ app.get("/search", async (req, res) => {
     res.json(allResults);
   } catch (error) {
     await browser.close();
-    res
-      .status(500)
-      .json({ error: "Erro ao buscar produtos", details: error.message });
+    res.status(500).json({ error: "Erro ao buscar produtos", details: error.message });
   }
 });
 
