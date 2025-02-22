@@ -1,3 +1,26 @@
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const express = require("express");
+const NodeCache = require("node-cache");
+
+puppeteer.use(StealthPlugin());
+
+const app = express();
+const PORT = 5000;
+const cache = new NodeCache({ stdTTL: 300 });
+
+const gotoWithRetry = async (page, url, retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+      return;
+    } catch (error) {
+      console.warn(`Tentativa ${i + 1} falhou para ${url}: ${error.message}`);
+    }
+  }
+  throw new Error(`Falha ao carregar ${url} após ${retries} tentativas`);
+};
+
 app.get("/search", async (req, res) => {
   const query = req.query.q;
   if (!query) {
