@@ -12,7 +12,7 @@ app.get("/search", async (req, res) => {
 
   const searchTerms = query.split(",").map((term) => term.trim());
   const browser = await puppeteer.launch({ headless: true });
-  let allResults = [];
+  let allResults = {};
 
   try {
     for (const term of searchTerms) {
@@ -39,36 +39,60 @@ app.get("/search", async (req, res) => {
           .slice(0, 10)
           .map((item) => {
             const name = item.querySelector(".nameCard")?.innerText.trim() || "Nome não encontrado";
-            const price = item.querySelector(".priceCard")?.innerText.trim() || "Preço não disponível";
+            const priceText = item.querySelector(".priceCard")?.innerText.trim() || "Preço não disponível";
             const image = item.querySelector("img")?.getAttribute("src") || "Imagem não encontrada";
             const link = item.querySelector("a")?.getAttribute("href") || "";
-
+            const price = parseFloat(priceText.replace("R$", "").replace(/\./g, "").replace(",", ".")) || 0;
             const reviewElement = item.querySelector(".ratingStarsContainer + span");
-            const reviewCount = reviewElement ? reviewElement.innerText.replace(/[()]/g, "").trim() : "0";
-
-            const ratingElement = item.querySelector(".ratingStarsContainer");
-            const ratingText = ratingElement?.getAttribute("aria-label") || "";
-            const ratingMatch = ratingText.match(/(\d+) de 5 estrelas/);
-            const rating = ratingMatch ? parseInt(ratingMatch[1]) : 0;
+            const reviewCount = reviewElement ? parseInt(reviewElement.innerText.replace(/[()]/g, "").trim()) || 0 : 0;
 
             return {
               searchTerm,
               name,
               price,
               reviewCount,
-              rating,
               image,
               url: link.startsWith("/") ? `https://www.kabum.com.br${link}` : link,
             };
           });
       }, term);
 
-      allResults.push(...products);
+      allResults[term] = products;
       await page.close();
     }
 
     await browser.close();
-    res.json(allResults);
+
+    let cheapestProducts = [];
+    let mostReviewedProducts = [];
+    let cheapestTotal = 0;
+    let mostReviewedTotalPrice = 0;
+
+    if (Object.keys(allResults).length > 1) {
+      cheapestProducts = Object.values(allResults)
+        .map((products) => products.sort((a, b) => a.price - b.price)[0])
+        .filter(Boolean);
+
+      mostReviewedProducts = Object.values(allResults)
+        .map((products) => products.sort((a, b) => b.reviewCount - a.reviewCount)[0])
+        .filter(Boolean);
+
+      cheapestTotal = cheapestProducts.reduce((acc, product) => acc + product.price, 0);
+      mostReviewedTotalPrice = mostReviewedProducts.reduce((acc, product) => acc + product.price, 0);
+    } else if (Object.keys(allResults).length === 1) {
+      const singleTerm = Object.keys(allResults)[0];
+      const singleProducts = allResults[singleTerm];
+      cheapestProducts = [singleProducts.sort((a, b) => a.price - b.price)[0]];
+      mostReviewedProducts = [singleProducts.sort((a, b) => b.reviewCount - a.reviewCount)[0]];
+      cheapestTotal = cheapestProducts[0]?.price || 0;
+      mostReviewedTotalPrice = mostReviewedProducts[0]?.price || 0;
+    }
+
+    res.json({
+      results: allResults,
+      cheapestCombination: { products: cheapestProducts, totalPrice: cheapestTotal },
+      mostReviewedCombination: { products: mostReviewedProducts, totalPrice: mostReviewedTotalPrice },
+    });
   } catch (error) {
     console.error("Erro ao buscar produtos:", error);
     await browser.close();
